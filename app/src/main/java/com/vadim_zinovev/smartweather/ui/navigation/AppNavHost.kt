@@ -1,15 +1,16 @@
 package com.vadim_zinovev.smartweather.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import androidx.navigation.NavType
-import com.vadim_zinovev.smartweather.ui.currentweather.CurrentWeatherScreen
-import com.vadim_zinovev.smartweather.ui.citysearch.CitySearchScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vadim_zinovev.smartweather.ui.citydetail.CityDetailScreen
+import com.vadim_zinovev.smartweather.ui.citysearch.CitySearchScreen
+import com.vadim_zinovev.smartweather.ui.currentweather.CurrentWeatherScreen
+import com.vadim_zinovev.smartweather.ui.currentweather.CurrentWeatherViewModel
 import com.vadim_zinovev.smartweather.ui.favorites.FavoritesScreen
 import com.vadim_zinovev.smartweather.ui.settings.SettingsScreen
 
@@ -21,22 +22,36 @@ fun AppNavHost(
         navController = navController,
         startDestination = Screen.CurrentWeather.route
     ) {
-        composable(Screen.CurrentWeather.route) {
-            CurrentWeatherScreen()
+        composable(Screen.CurrentWeather.route) { backStackEntry ->
+            val currentWeatherViewModel: CurrentWeatherViewModel = viewModel()
+
+            val selectedCityName =
+                backStackEntry.savedStateHandle.get<String>("selectedCityName")
+
+            if (selectedCityName != null) {
+                LaunchedEffect(selectedCityName) {
+                    currentWeatherViewModel.loadWeatherForCity(selectedCityName)
+                    backStackEntry.savedStateHandle["selectedCityName"] = null
+                }
+            }
+
+            CurrentWeatherScreen(
+                viewModel = currentWeatherViewModel,
+                onSearchClick = {
+                    navController.navigate(Screen.CitySearch.route)
+                }
+            )
         }
 
         composable(Screen.CitySearch.route) {
-            CitySearchScreen()
-        }
-
-        composable(
-            route = Screen.CityDetail.route,
-            arguments = listOf(
-                navArgument("cityId") { type = NavType.LongType }
+            CitySearchScreen(
+                onCitySelected = { cityName ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("selectedCityName", cityName)
+                    navController.popBackStack()
+                }
             )
-        ) { backStackEntry ->
-            val cityId = backStackEntry.arguments?.getLong("cityId") ?: -1L
-            CityDetailScreen(cityId = cityId)
         }
 
         composable(Screen.Favorites.route) {
@@ -45,6 +60,11 @@ fun AppNavHost(
 
         composable(Screen.Settings.route) {
             SettingsScreen()
+        }
+
+        composable(Screen.CityDetail.route) { backStackEntry ->
+            val cityId = backStackEntry.arguments?.getString("cityId")?.toLongOrNull() ?: -1L
+            CityDetailScreen(cityId = cityId)
         }
     }
 }
