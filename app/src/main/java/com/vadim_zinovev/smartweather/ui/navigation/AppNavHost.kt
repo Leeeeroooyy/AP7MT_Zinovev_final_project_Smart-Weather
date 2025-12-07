@@ -15,6 +15,7 @@ import com.vadim_zinovev.smartweather.ui.currentweather.CurrentWeatherViewModel
 import com.vadim_zinovev.smartweather.ui.currentweather.CurrentWeatherViewModelFactory
 import com.vadim_zinovev.smartweather.ui.favorites.FavoritesScreen
 import com.vadim_zinovev.smartweather.ui.settings.SettingsScreen
+import com.vadim_zinovev.smartweather.ui.splash.SplashScreen
 
 @Composable
 fun AppNavHost(
@@ -22,8 +23,20 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.CurrentWeather.route
+        startDestination = "splash"          // <-- стартуем со сплэша
     ) {
+        // ---------- SPLASH ----------
+        composable("splash") {
+            SplashScreen(
+                onFinished = {
+                    navController.navigate(Screen.CurrentWeather.route) {
+                        popUpTo("splash") { inclusive = true } // убираем сплэш из back stack
+                    }
+                }
+            )
+        }
+
+        // ---------- CURRENT WEATHER ----------
         composable(Screen.CurrentWeather.route) { backStackEntry ->
             val context = LocalContext.current
             val currentWeatherViewModel: CurrentWeatherViewModel = viewModel(
@@ -61,6 +74,7 @@ fun AppNavHost(
             )
         }
 
+        // ---------- CITY SEARCH ----------
         composable(Screen.CitySearch.route) {
             CitySearchScreen(
                 onCitySelected = { city ->
@@ -76,14 +90,17 @@ fun AppNavHost(
             )
         }
 
+        // ---------- FAVORITES ----------
         composable(Screen.Favorites.route) {
             FavoritesScreen()
         }
 
+        // ---------- SETTINGS ----------
         composable(Screen.Settings.route) {
             SettingsScreen()
         }
 
+        // ---------- CITY DETAIL ----------
         composable(Screen.CityDetail.route) { backStackEntry ->
             val cityId = backStackEntry.arguments
                 ?.getString("cityId")
