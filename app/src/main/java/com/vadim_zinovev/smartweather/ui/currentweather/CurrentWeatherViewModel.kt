@@ -152,7 +152,7 @@ class CurrentWeatherViewModel(
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     isLoading = false,
-                    errorMessage = e.message ?: "Nepodařilo se načíst počasí"
+                    errorMessage = e.message ?: "Failed to load weather"
                 )
             }
         }

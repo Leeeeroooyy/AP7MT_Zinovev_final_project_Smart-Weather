@@ -19,7 +19,8 @@ import androidx.core.content.ContextCompat
 fun CurrentWeatherScreen(
     viewModel: CurrentWeatherViewModel,
     onSearchClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onFavoritesClick: () -> Unit
 ) {
     val state = viewModel.uiState
     val context = LocalContext.current
@@ -44,10 +45,10 @@ fun CurrentWeatherScreen(
     ) {
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(onClick = onSearchClick) {
-                Text(text = "Search city")
+                Text(text = "Search")
             }
 
             Button(onClick = onSettingsClick) {
@@ -79,6 +80,10 @@ fun CurrentWeatherScreen(
             ) {
                 Text("My location")
             }
+
+            Button(onClick = onFavoritesClick) {
+                Text("Favorites")
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -101,7 +106,9 @@ fun CurrentWeatherScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (state.airQualityIndex != null && state.airQualityText != null) {
-                        Text(text = "Air quality: ${state.airQualityText} (AQI ${state.airQualityIndex})")
+                        Text(
+                            text = "Air quality: ${state.airQualityText} (AQI ${state.airQualityIndex})"
+                        )
                     }
                 }
             }

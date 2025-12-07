@@ -2,12 +2,14 @@ package com.vadim_zinovev.smartweather.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.vadim_zinovev.smartweather.data.local.FavoritesStorage
 import com.vadim_zinovev.smartweather.ui.citydetail.CityDetailScreen
 import com.vadim_zinovev.smartweather.ui.citysearch.CitySearchScreen
 import com.vadim_zinovev.smartweather.ui.currentweather.CurrentWeatherScreen
@@ -16,6 +18,7 @@ import com.vadim_zinovev.smartweather.ui.currentweather.CurrentWeatherViewModelF
 import com.vadim_zinovev.smartweather.ui.favorites.FavoritesScreen
 import com.vadim_zinovev.smartweather.ui.settings.SettingsScreen
 import com.vadim_zinovev.smartweather.ui.splash.SplashScreen
+import kotlinx.coroutines.launch
 
 @Composable
 fun AppNavHost(
@@ -23,20 +26,18 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = "splash"          // <-- стартуем со сплэша
+        startDestination = "splash"
     ) {
-        // ---------- SPLASH ----------
         composable("splash") {
             SplashScreen(
                 onFinished = {
                     navController.navigate(Screen.CurrentWeather.route) {
-                        popUpTo("splash") { inclusive = true } // убираем сплэш из back stack
+                        popUpTo("splash") { inclusive = true }
                     }
                 }
             )
         }
 
-        // ---------- CURRENT WEATHER ----------
         composable(Screen.CurrentWeather.route) { backStackEntry ->
             val context = LocalContext.current
             val currentWeatherViewModel: CurrentWeatherViewModel = viewModel(
@@ -49,7 +50,6 @@ fun AppNavHost(
                 backStackEntry.savedStateHandle.get<Double>("selectedLat")
             val selectedLon =
                 backStackEntry.savedStateHandle.get<Double>("selectedLon")
-
             if (selectedCityName != null && selectedLat != null && selectedLon != null) {
                 LaunchedEffect(selectedCityName, selectedLat, selectedLon) {
                     currentWeatherViewModel.loadWeatherForCityCoordinates(
@@ -62,6 +62,12 @@ fun AppNavHost(
                     backStackEntry.savedStateHandle["selectedLon"] = null
                 }
             }
+            else if (selectedCityName != null) {
+                LaunchedEffect(selectedCityName) {
+                    currentWeatherViewModel.loadWeatherForCity(selectedCityName)
+                    backStackEntry.savedStateHandle["selectedCityName"] = null
+                }
+            }
 
             CurrentWeatherScreen(
                 viewModel = currentWeatherViewModel,
@@ -70,37 +76,80 @@ fun AppNavHost(
                 },
                 onSettingsClick = {
                     navController.navigate(Screen.Settings.route)
+                },
+                onFavoritesClick = {
+                    navController.navigate(Screen.Favorites.route)
                 }
             )
         }
-
-        // ---------- CITY SEARCH ----------
         composable(Screen.CitySearch.route) {
             CitySearchScreen(
                 onCitySelected = { city ->
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.apply {
-                            set("selectedCityName", city.name)
-                            set("selectedLat", city.latitude)
-                            set("selectedLon", city.longitude)
-                        }
-                    navController.popBackStack()
+                    val currentWeatherEntry =
+                        navController.getBackStackEntry(Screen.CurrentWeather.route)
+
+                    currentWeatherEntry.savedStateHandle["selectedCityName"] = city.name
+                    currentWeatherEntry.savedStateHandle["selectedLat"] = city.latitude
+                    currentWeatherEntry.savedStateHandle["selectedLon"] = city.longitude
+
+                    navController.popBackStack(
+                        route = Screen.CurrentWeather.route,
+                        inclusive = false
+                    )
                 }
             )
         }
 
-        // ---------- FAVORITES ----------
-        composable(Screen.Favorites.route) {
-            FavoritesScreen()
+        composable(Screen.CitySearchFavorites.route) {
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
+            val favoritesStorage = FavoritesStorage(context.applicationContext)
+
+            CitySearchScreen(
+                onCitySelected = { city ->
+                    // 1) Add to favorites
+                    scope.launch {
+                        favoritesStorage.toggleCity(city.name)
+                    }
+
+                    val currentWeatherEntry =
+                        navController.getBackStackEntry(Screen.CurrentWeather.route)
+
+                    currentWeatherEntry.savedStateHandle["selectedCityName"] = city.name
+                    currentWeatherEntry.savedStateHandle["selectedLat"] = city.latitude
+                    currentWeatherEntry.savedStateHandle["selectedLon"] = city.longitude
+
+                    navController.popBackStack(
+                        route = Screen.CurrentWeather.route,
+                        inclusive = false
+                    )
+                }
+            )
         }
 
-        // ---------- SETTINGS ----------
+        composable(Screen.Favorites.route) {
+            FavoritesScreen(
+                onCitySelected = { cityName ->
+                    val currentWeatherEntry =
+                        navController.getBackStackEntry(Screen.CurrentWeather.route)
+
+                    currentWeatherEntry.savedStateHandle["selectedCityName"] = cityName
+
+                    navController.popBackStack(
+                        route = Screen.CurrentWeather.route,
+                        inclusive = false
+                    )
+                },
+                onSearchClick = {
+                    navController.navigate(Screen.CitySearchFavorites.route)
+                }
+            )
+        }
+
         composable(Screen.Settings.route) {
             SettingsScreen()
         }
 
-        // ---------- CITY DETAIL ----------
         composable(Screen.CityDetail.route) { backStackEntry ->
             val cityId = backStackEntry.arguments
                 ?.getString("cityId")
