@@ -2,44 +2,24 @@ package com.vadim_zinovev.smartweather.ui.currentweather
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.vadim_zinovev.smartweather.data.local.FavoritesStorage
+import kotlinx.coroutines.launch
 import kotlin.math.max
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CurrentWeatherScreen(
     viewModel: CurrentWeatherViewModel,
@@ -50,6 +30,7 @@ fun CurrentWeatherScreen(
 ) {
     val state = viewModel.uiState
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val favoritesStorage = remember { FavoritesStorage(context.applicationContext) }
     val favoriteCities by favoritesStorage.favoriteCities.collectAsState(initial = emptyList())
@@ -59,29 +40,25 @@ fun CurrentWeatherScreen(
         pageCount = { max(favoriteCities.size, 1) }
     )
 
-    var lastRequestedCity by remember { mutableStateOf<String?>(null) }
-    var isMenuExpanded by remember { mutableStateOf(false) }
+    var lastPage by remember { mutableStateOf(pagerState.currentPage) }
 
-    LaunchedEffect(favoriteCities, pagerState.currentPage, state.cityName) {
-        if (favoriteCities.isNotEmpty()) {
-            val index = pagerState.currentPage.coerceIn(favoriteCities.indices)
-            val city = favoriteCities[index]
-            val cityInFavorites = state.cityName?.let { it in favoriteCities } ?: false
-            if (state.cityName == null || cityInFavorites) {
-                if (city != lastRequestedCity) {
-                    lastRequestedCity = city
-                    viewModel.loadWeatherForCity(city)
-                }
-            }
+    LaunchedEffect(pagerState.currentPage, favoriteCities) {
+        if (favoriteCities.isEmpty()) return@LaunchedEffect
+        if (pagerState.currentPage != lastPage) {
+            lastPage = pagerState.currentPage
+            val city = favoriteCities.getOrNull(pagerState.currentPage) ?: return@LaunchedEffect
+            viewModel.loadWeatherForCity(city)
         }
     }
+
+    var menuExpanded by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
+                Brush.verticalGradient(
+                    listOf(
                         Color(0xFF5B86E5),
                         Color(0xFF36D1DC)
                     )
@@ -93,18 +70,20 @@ fun CurrentWeatherScreen(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+
+            Spacer(modifier = Modifier.height(48.dp))
 
             when {
                 state.isLoading -> {
-                    CircularProgressIndicator(color = Color.White)
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color.White)
+                    }
                 }
 
                 state.errorMessage != null -> {
-                    Text(
-                        text = "Error: ${state.errorMessage}",
-                        color = Color.White
-                    )
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Error: ${state.errorMessage}", color = Color.White)
+                    }
                 }
 
                 state.temperatureText != null -> {
@@ -131,64 +110,69 @@ fun CurrentWeatherScreen(
                 }
 
                 else -> {
-                    Text(
-                        text = "No data",
-                        color = Color.White
-                    )
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No data", color = Color.White)
+                    }
+                }
+            }
+
+            if (favoriteCities.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = {
+                        scope.launch {
+                            pagerState.animateScrollToPage(0)
+                        }
+                    }
+                ) {
+                    Text("Home")
                 }
             }
         }
 
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(x = 4.dp, y = 4.dp)
-        ) {
-            Button(
-                onClick = { isMenuExpanded = true },
-                shape = MaterialTheme.shapes.large,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF324A8A),
-                    contentColor = Color.White
-                ),
-                contentPadding = ButtonDefaults.ContentPadding
+        Box(modifier = Modifier.align(Alignment.TopStart)) {
+            SmallFloatingActionButton(
+                onClick = { menuExpanded = true },
+                containerColor = Color(0xFF374785),
+                contentColor = Color.White
             ) {
-                Text(
-                    text = "☰",
-                    fontSize = 18.sp
-                )
+                Icon(Icons.Default.Menu, contentDescription = "Menu")
             }
 
             DropdownMenu(
-                expanded = isMenuExpanded,
-                onDismissRequest = { isMenuExpanded = false }
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
             ) {
                 DropdownMenuItem(
                     text = { Text("Search city") },
+                    leadingIcon = { Icon(Icons.Default.Search, null) },
                     onClick = {
-                        isMenuExpanded = false
+                        menuExpanded = false
                         onSearchClick()
                     }
                 )
                 DropdownMenuItem(
                     text = { Text("Favorites") },
+                    leadingIcon = { Icon(Icons.Default.Favorite, null) },
                     onClick = {
-                        isMenuExpanded = false
+                        menuExpanded = false
                         onFavoritesClick()
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("My location") },
+                    text = { Text("Settings") },
+                    leadingIcon = { Icon(Icons.Default.Settings, null) },
                     onClick = {
-                        isMenuExpanded = false
-                        onMyLocationClick()
+                        menuExpanded = false
+                        onSettingsClick()
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Settings") },
+                    text = { Text("My location") },
+                    leadingIcon = { Icon(Icons.Default.LocationOn, null) },
                     onClick = {
-                        isMenuExpanded = false
-                        onSettingsClick()
+                        menuExpanded = false
+                        onMyLocationClick()
                     }
                 )
             }
@@ -202,50 +186,59 @@ private fun WeatherCardContent(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier.padding(horizontal = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = state.cityName.orEmpty(),
-            style = MaterialTheme.typography.headlineSmall,
-            color = Color.White
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = state.temperatureText.orEmpty(),
-            style = MaterialTheme.typography.headlineMedium,
-            color = Color.White
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = state.description.orEmpty(),
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White
-        )
 
-        if (state.airQualityIndex != null && state.airQualityText != null) {
-            Spacer(modifier = Modifier.height(24.dp))
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 32.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White.copy(alpha = 0.18f),
-                    contentColor = Color.White
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Air quality",
-                        style = MaterialTheme.typography.titleMedium
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(state.cityName.orEmpty(), style = MaterialTheme.typography.headlineSmall, color = Color.White)
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(state.temperatureText.orEmpty(), style = MaterialTheme.typography.headlineLarge, color = Color.White)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(state.description.orEmpty(), color = Color.White)
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+
+            if (state.minTempText != null || state.feelsLikeText != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White.copy(alpha = 0.18f),
+                        contentColor = Color.White
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "AQI: ${state.airQualityIndex}")
-                    Text(text = state.airQualityText)
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Details", style = MaterialTheme.typography.titleMedium)
+                        state.minTempText?.let { Text("min ${it}") }
+                        state.maxTempText?.let { Text("max ${it}") }
+                        state.feelsLikeText?.let { Text("feels like ${it}") }
+                        state.humidity?.let { Text("humidity ${it}%") }
+                        state.windSpeedText?.let { Text("wind ${it}") }
+                        state.pressure?.let { Text("pressure ${it} hPa") }
+                    }
+                }
+            }
+
+            if (state.airQualityIndex != null && state.airQualityText != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White.copy(alpha = 0.18f),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Air quality", style = MaterialTheme.typography.titleMedium)
+                        Text("AQI: ${state.airQualityIndex}")
+                        Text(state.airQualityText)
+                    }
                 }
             }
         }

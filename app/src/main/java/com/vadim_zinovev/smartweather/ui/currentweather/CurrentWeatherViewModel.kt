@@ -80,15 +80,18 @@ class CurrentWeatherViewModel(
                 val location = locationProvider.getCurrentLocation()
                     ?: throw IllegalStateException("Location not available")
 
+                val latitude = location.latitude
+                val longitude = location.longitude
+
                 lastSource = Source.COORDINATES
                 lastCityName = "My location"
-                lastLat = location.latitude
-                lastLon = location.longitude
+                lastLat = latitude
+                lastLon = longitude
 
                 reloadWeatherByCoordinates(
                     cityName = "My location",
-                    latitude = location.latitude,
-                    longitude = location.longitude,
+                    latitude = latitude,
+                    longitude = longitude,
                     showLoader = false
                 )
             } catch (e: SecurityException) {
@@ -150,6 +153,11 @@ class CurrentWeatherViewModel(
                 val unitSymbol =
                     if (currentUnit == TemperatureUnit.CELSIUS) "°C" else "°F"
 
+                val feelsLikeText = "${weather.feelsLike.toInt()}$unitSymbol"
+                val minTempText = weather.minTemperature?.let { "${it.toInt()}$unitSymbol" }
+                val maxTempText = weather.maxTemperature?.let { "${it.toInt()}$unitSymbol" }
+                val windSpeedText = "${weather.windSpeed} m/s"
+
                 uiState = uiState.copy(
                     isLoading = false,
                     cityName = city,
@@ -157,6 +165,12 @@ class CurrentWeatherViewModel(
                     description = weather.description,
                     airQualityIndex = airQuality?.aqi,
                     airQualityText = airQuality?.aqi?.let { indexToText(it) },
+                    feelsLikeText = feelsLikeText,
+                    minTempText = minTempText,
+                    maxTempText = maxTempText,
+                    humidity = weather.humidity,
+                    windSpeedText = windSpeedText,
+                    pressure = weather.pressure,
                     errorMessage = null
                 )
             } catch (e: Exception) {
@@ -198,6 +212,13 @@ class CurrentWeatherViewModel(
                 val unitSymbol =
                     if (currentUnit == TemperatureUnit.CELSIUS) "°C" else "°F"
 
+                val feelsLikeText = "${weather.feelsLike.toInt()}$unitSymbol"
+                val minTempText = weather.minTemperature?.let { "${it.toInt()}$unitSymbol" }
+                val maxTempText = weather.maxTemperature?.let { "${it.toInt()}$unitSymbol" }
+                val windSpeedText = "${weather.windSpeed} m/s"
+
+                lastCityName = cityName
+
                 uiState = uiState.copy(
                     isLoading = false,
                     cityName = cityName,
@@ -205,6 +226,12 @@ class CurrentWeatherViewModel(
                     description = weather.description,
                     airQualityIndex = airQuality?.aqi,
                     airQualityText = airQuality?.aqi?.let { indexToText(it) },
+                    feelsLikeText = feelsLikeText,
+                    minTempText = minTempText,
+                    maxTempText = maxTempText,
+                    humidity = weather.humidity,
+                    windSpeedText = windSpeedText,
+                    pressure = weather.pressure,
                     errorMessage = null
                 )
             } catch (e: Exception) {

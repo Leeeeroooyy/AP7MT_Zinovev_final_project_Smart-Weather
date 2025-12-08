@@ -16,8 +16,8 @@ class CurrentWeatherViewModelFactory(
 
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(CurrentWeatherViewModel::class.java)) {
-            val weatherRepository: WeatherRepository =
-                WeatherRepositoryImpl(WeatherApiFactory.create())
+            val api = WeatherApiFactory.create()
+            val weatherRepository: WeatherRepository = WeatherRepositoryImpl(api)
             val settingsRepository: SettingsRepository =
                 SettingsRepositoryImpl(context.applicationContext)
             val locationProvider = LocationProvider(context.applicationContext)
