@@ -3,6 +3,7 @@ package com.vadim_zinovev.smartweather.domain.repository
 import com.vadim_zinovev.smartweather.domain.model.AirQuality
 import com.vadim_zinovev.smartweather.domain.model.TemperatureUnit
 import com.vadim_zinovev.smartweather.domain.model.Weather
+import com.vadim_zinovev.smartweather.domain.model.DailyForecast
 
 interface WeatherRepository {
 
@@ -21,4 +22,13 @@ interface WeatherRepository {
         latitude: Double,
         longitude: Double
     ): AirQuality?
+
+    suspend fun getDailyForecast(
+        latitude: Double,
+        longitude: Double,
+        unit: TemperatureUnit
+    ): List<DailyForecast>
 }
+
+
+

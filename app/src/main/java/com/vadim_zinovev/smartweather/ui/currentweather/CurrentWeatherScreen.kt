@@ -1,6 +1,8 @@
 package com.vadim_zinovev.smartweather.ui.currentweather
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
@@ -47,8 +51,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.vadim_zinovev.smartweather.R
 import com.vadim_zinovev.smartweather.data.local.FavoritesStorage
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -78,6 +85,7 @@ fun CurrentWeatherScreen(
     )
 
     val scope = rememberCoroutineScope()
+
     var mainWeatherState by remember { mutableStateOf<CurrentWeatherUiState?>(null) }
 
     LaunchedEffect(state) {
@@ -87,6 +95,16 @@ fun CurrentWeatherScreen(
             state.temperatureText != null
         ) {
             mainWeatherState = state
+        }
+    }
+
+    LaunchedEffect(favoriteCities) {
+        if (favoriteCities.isNotEmpty() &&
+            !state.isLoading &&
+            state.temperatureText == null &&
+            state.errorMessage == null
+        ) {
+            viewModel.loadWeatherForCity(favoriteCities.first())
         }
     }
 
@@ -102,7 +120,9 @@ fun CurrentWeatherScreen(
                     isFirstEmission = false
                     return@collect
                 }
+
                 if (page == 0) return@collect
+
                 val favoriteIndex = page - 1
                 val city = favoriteCities.getOrNull(favoriteIndex) ?: return@collect
                 viewModel.loadWeatherForCity(city)
@@ -139,6 +159,8 @@ fun CurrentWeatherScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            // область с погодой, растягиваем по высоте, но без использования Modifier.weight в импортe
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -150,9 +172,10 @@ fun CurrentWeatherScreen(
                     pagerState = pagerState
                 )
             }
+
             if (!state.isLoading &&
                 state.errorMessage == null &&
-                state.temperatureText != null &&
+                (state.temperatureText != null || mainWeatherState?.temperatureText != null) &&
                 pagerState.pageCount > 1
             ) {
                 FavoriteCitiesPagerIndicator(
@@ -300,11 +323,8 @@ private fun CurrentWeatherStateContent(
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 val contentState =
-                    if (page == 0) {
-                        mainWeatherState ?: state
-                    } else {
-                        state
-                    }
+                    if (page == 0) mainWeatherState ?: state
+                    else state
 
                 WeatherCardContent(
                     state = contentState,
@@ -314,12 +334,17 @@ private fun CurrentWeatherStateContent(
         }
 
         else -> {
+            val placeholder = if (pagerState.pageCount <= 1) {
+                "Find your city"
+            } else {
+                "No data"
+            }
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No data",
+                    text = placeholder,
                     color = Color.White
                 )
             }
@@ -354,15 +379,34 @@ private fun FavoriteCitiesPagerIndicator(
     }
 }
 
+@DrawableRes
+private fun weatherBackgroundRes(iconCode: String?): Int {
+    val base = iconCode?.take(2)
+    return when (base) {
+        "01" -> R.drawable.bg_weather_clear
+        "02" -> R.drawable.bg_weather_few_clouds
+        "03", "04" -> R.drawable.bg_weather_cloudy
+        "09", "10" -> R.drawable.bg_weather_rain
+        "11" -> R.drawable.bg_weather_storm
+        "13" -> R.drawable.bg_weather_snow
+        "50" -> R.drawable.bg_weather_mist
+        else -> R.drawable.bg_weather_cloudy
+    }
+}
+
 @Composable
 private fun WeatherCardContent(
     state: CurrentWeatherUiState,
     modifier: Modifier = Modifier
 ) {
+    val scrollState = rememberScrollState()
+
     Column(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.Top
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -376,13 +420,28 @@ private fun WeatherCardContent(
                 color = Color.White
             )
             Spacer(modifier = Modifier.height(8.dp))
+
+            val bgRes = weatherBackgroundRes(state.iconCode)
+
             Box(
                 modifier = Modifier
                     .size(260.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF003B66)),
+                    .clip(CircleShape),
                 contentAlignment = Alignment.Center
             ) {
+                Image(
+                    painter = painterResource(id = bgRes),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.25f))
+                )
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -395,12 +454,12 @@ private fun WeatherCardContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = state.minTempText?.let { "min $it" } ?: "",
+                            text = state.minTempText ?: "",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White
                         )
                         Text(
-                            text = state.maxTempText?.let { "max $it" } ?: "",
+                            text = state.maxTempText ?: "",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White
                         )
@@ -419,13 +478,15 @@ private fun WeatherCardContent(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = state.feelsLikeText?.let { "feels like $it" } ?: "",
+                        text = state.feelsLikeText ?: "",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White
                     )
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(32.dp))
 
         Column(
             modifier = Modifier
@@ -495,26 +556,28 @@ private fun WeatherCardContent(
                 }
             }
 
-            if (state.airQualityIndex != null && state.airQualityText != null) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White.copy(alpha = 0.16f),
-                        contentColor = Color.White
-                    )
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White.copy(alpha = 0.16f),
+                    contentColor = Color.White
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Air quality",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                    Text(
+                        text = "Air quality",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    if (state.airQualityIndex != null && state.airQualityText != null) {
                         Text(text = "AQI: ${state.airQualityIndex}")
                         Text(text = state.airQualityText)
+                    } else {
+                        Text(text = "No data")
                     }
                 }
             }

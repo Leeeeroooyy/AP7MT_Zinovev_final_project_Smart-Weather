@@ -3,6 +3,7 @@ package com.vadim_zinovev.smartweather.data.remote.dto
 import com.vadim_zinovev.smartweather.domain.model.AirQuality
 import com.vadim_zinovev.smartweather.domain.model.City
 import com.vadim_zinovev.smartweather.domain.model.Weather
+import com.vadim_zinovev.smartweather.domain.model.DailyForecast
 
 fun CurrentWeatherResponseDto.toDomainWeather(): Weather {
     val firstWeather = weather.firstOrNull()
@@ -19,7 +20,7 @@ fun CurrentWeatherResponseDto.toDomainWeather(): Weather {
         timestamp = timestamp,
         latitude = coord.lat,
         longitude = coord.lon,
-        cityName = name
+        cityName = name,
     )
 }
 
@@ -47,3 +48,29 @@ fun CityGeocodingDto.toDomainCity(
     longitude = longitude,
     isFavorite = isFavorite
 )
+
+fun DailyForecastResponseDto.toDomainDailyForecast(): List<DailyForecast> {
+    if (list.isEmpty()) return emptyList()
+    val itemsByDay = list.groupBy { item ->
+        item.timestamp / 86_400L   // 60 * 60 * 24
+    }
+    return itemsByDay
+        .toSortedMap()
+        .values
+        .map { dayItems ->
+            val first = dayItems.first()
+            val minTemp = dayItems.minOf { it.main.tempMin }
+            val maxTemp = dayItems.maxOf { it.main.tempMax }
+
+            val description = dayItems
+                .mapNotNull { it.weather.firstOrNull()?.description }
+                .firstOrNull() ?: ""
+
+            DailyForecast(
+                timestamp = first.timestamp,
+                minTemp = minTemp,
+                maxTemp = maxTemp,
+                description = description
+            )
+        }
+}

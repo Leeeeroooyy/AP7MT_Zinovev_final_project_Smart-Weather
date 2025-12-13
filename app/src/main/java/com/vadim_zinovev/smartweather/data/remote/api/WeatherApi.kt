@@ -3,6 +3,7 @@ package com.vadim_zinovev.smartweather.data.remote.api
 import com.vadim_zinovev.smartweather.data.remote.dto.AirQualityResponseDto
 import com.vadim_zinovev.smartweather.data.remote.dto.CityGeocodingDto
 import com.vadim_zinovev.smartweather.data.remote.dto.CurrentWeatherResponseDto
+import com.vadim_zinovev.smartweather.data.remote.dto.DailyForecastResponseDto
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -36,4 +37,12 @@ interface WeatherApi {
         @Query("limit") limit: Int = 5,
         @Query("appid") apiKey: String
     ): List<CityGeocodingDto>
+
+    @GET("data/2.5/forecast")
+    suspend fun getDailyForecast(
+        @Query("lat") latitude: Double,
+        @Query("lon") longitude: Double,
+        @Query("units") units: String = "metric",
+        @Query("appid") apiKey: String
+    ): DailyForecastResponseDto
 }

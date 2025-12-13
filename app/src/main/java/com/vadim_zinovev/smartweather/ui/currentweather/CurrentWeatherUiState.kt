@@ -14,11 +14,13 @@ data class CurrentWeatherUiState(
     val humidity: Int? = null,
     val windSpeedText: String? = null,
     val pressure: Int? = null,
-    val dailyForecast: List<DailyForecastUiModel> = emptyList()
+    val dailyForecast: List<DailyForecastUiModel> = emptyList(),
+    val iconCode: String? = null
 )
 
 data class DailyForecastUiModel(
     val dayLabel: String,
     val minTemp: String,
-    val maxTemp: String
+    val maxTemp: String,
+    val iconCode: String? = null
 )

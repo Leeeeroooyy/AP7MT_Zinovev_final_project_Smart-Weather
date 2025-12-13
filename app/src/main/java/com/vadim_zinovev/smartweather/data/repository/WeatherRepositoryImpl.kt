@@ -3,8 +3,10 @@ package com.vadim_zinovev.smartweather.data.repository
 import com.vadim_zinovev.smartweather.BuildConfig
 import com.vadim_zinovev.smartweather.data.remote.api.WeatherApi
 import com.vadim_zinovev.smartweather.data.remote.dto.toDomainAirQuality
+import com.vadim_zinovev.smartweather.data.remote.dto.toDomainDailyForecast
 import com.vadim_zinovev.smartweather.data.remote.dto.toDomainWeather
 import com.vadim_zinovev.smartweather.domain.model.AirQuality
+import com.vadim_zinovev.smartweather.domain.model.DailyForecast
 import com.vadim_zinovev.smartweather.domain.model.TemperatureUnit
 import com.vadim_zinovev.smartweather.domain.model.Weather
 import com.vadim_zinovev.smartweather.domain.repository.WeatherRepository
@@ -58,4 +60,18 @@ class WeatherRepositoryImpl(
             TemperatureUnit.CELSIUS -> "metric"
             TemperatureUnit.FAHRENHEIT -> "imperial"
         }
+
+    override suspend fun getDailyForecast(
+        latitude: Double,
+        longitude: Double,
+        unit: TemperatureUnit
+    ): List<DailyForecast> {
+        val response = api.getDailyForecast(
+            latitude = latitude,
+            longitude = longitude,
+            units = unit.toApiUnits(),
+            apiKey = apiKey
+        )
+        return response.toDomainDailyForecast()
+    }
 }
