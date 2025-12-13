@@ -2,6 +2,7 @@ package com.vadim_zinovev.smartweather.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vadim_zinovev.smartweather.domain.model.AppTheme
 import com.vadim_zinovev.smartweather.domain.model.TemperatureUnit
 import com.vadim_zinovev.smartweather.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,6 +12,7 @@ import kotlinx.coroutines.launch
 
 data class SettingsUiState(
     val selectedUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
+    val selectedTheme: AppTheme = AppTheme.LIGHT,
     val isLoading: Boolean = true
 )
 
@@ -24,8 +26,11 @@ class SettingsViewModel(
     init {
         viewModelScope.launch {
             val unit = settingsRepository.observeTemperatureUnit().first()
+            val theme = settingsRepository.observeAppTheme().first()
+
             _uiState.value = SettingsUiState(
                 selectedUnit = unit,
+                selectedTheme = theme,
                 isLoading = false
             )
         }
@@ -38,6 +43,16 @@ class SettingsViewModel(
 
         viewModelScope.launch {
             settingsRepository.setTemperatureUnit(unit)
+        }
+    }
+
+    fun onThemeSelected(theme: AppTheme) {
+        if (_uiState.value.selectedTheme == theme) return
+
+        _uiState.value = _uiState.value.copy(selectedTheme = theme)
+
+        viewModelScope.launch {
+            settingsRepository.setAppTheme(theme)
         }
     }
 }
