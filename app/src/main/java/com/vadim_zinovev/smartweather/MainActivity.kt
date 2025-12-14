@@ -17,13 +17,19 @@ import com.vadim_zinovev.smartweather.ui.theme.SmartWeatherTheme
 
 class MainActivity : ComponentActivity() {
 
+    private var permissionResultCallback: ((Boolean) -> Unit)? = null
+
     private val locationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            val granted = (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) ||
+                    (permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true)
+
+            permissionResultCallback?.invoke(granted)
+            permissionResultCallback = null
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        requestLocationPermissions()
 
         setContent {
             val context = LocalContext.current.applicationContext
@@ -38,7 +44,23 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun requestLocationPermissions() {
+    fun ensureLocationPermission(onResult: (Boolean) -> Unit) {
+        if (hasLocationPermission()) {
+            onResult(true)
+            return
+        }
+
+        permissionResultCallback = onResult
+
+        locationPermissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
+    }
+
+    private fun hasLocationPermission(): Boolean {
         val fineGranted = ContextCompat.checkSelfPermission(
             this,
             Manifest.permission.ACCESS_FINE_LOCATION
@@ -49,13 +71,6 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PermissionChecker.PERMISSION_GRANTED
 
-        if (!fineGranted || !coarseGranted) {
-            locationPermissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
-        }
+        return fineGranted || coarseGranted
     }
 }

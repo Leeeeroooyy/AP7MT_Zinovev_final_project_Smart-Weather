@@ -1,5 +1,9 @@
 package com.vadim_zinovev.smartweather.ui.currentweather
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -57,8 +61,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.vadim_zinovev.smartweather.MainActivity
 import com.vadim_zinovev.smartweather.R
-import com.vadim_zinovev.smartweather.data.local.FavoriteCity
 import com.vadim_zinovev.smartweather.data.local.FavoritesStorage
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -175,8 +179,17 @@ fun CurrentWeatherScreen(
                 onFavoritesClick = onFavoritesClick,
                 onSettingsClick = onSettingsClick,
                 onMyLocationClick = {
-                    pendingHomeUpdate = true
-                    onMyLocationClick()
+                    val activity = context.findActivity() as? MainActivity
+                    activity?.ensureLocationPermission { granted ->
+                        if (granted) {
+                            pendingHomeUpdate = true
+                            onMyLocationClick()
+                        } else {
+                            Toast.makeText(context, "Location permission denied", Toast.LENGTH_SHORT).show()
+                        }
+                    } ?: run {
+                        Toast.makeText(context, "Activity not found", Toast.LENGTH_SHORT).show()
+                    }
                 },
                 onHomeClick = { scope.launch { pagerState.animateScrollToPage(0) } },
                 buttonColor = colors.button,
@@ -666,5 +679,13 @@ private fun DetailItemWithBar(
                     .background(Color.White)
             )
         }
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? {
+    return when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
     }
 }
